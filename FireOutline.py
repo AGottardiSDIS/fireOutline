@@ -45,27 +45,22 @@ import sys
 
 from .exceptions import show_message
 
+#Recherche du path de OSGEO
+A = sys.exec_prefix
+B = A.split("\\")[:-2]
+C = "\\".join(B) 
+subprocess.call([C + "\OSGeo4W.bat","pip", "install", "sentinelhub"])
+
+#Importation et/ou installations de biblioteque 
 try:
     import sentinelhub
 except ModuleNotFoundError:
     print('installing sentinelhub')
     if platform.system() == 'Windows':
-        subprocess.call([sys.exec_prefix + '/python', "-m", 'pip', 'install', 'sentinelhub'])
+        subprocess.call([C + "\OSGeo4W.bat","pip", "install", "sentinelhub"])
     else:
         subprocess.call(['python3', '-m', 'pip', 'install', 'sentinelhub'])
     import sentinelhub
-
-try:
-    import gdal
-except ModuleNotFoundError:
-    print('installing GDAL')
-    if platform.system() == 'Windows':
-        subprocess.call([sys.exec_prefix + '/python', "-m", 'pip', 'install', 'GDAL'])
-    else:
-        subprocess.call(['python3', '-m', 'pip', 'install', 'GDAL'])
-    import gdal
-
-
 try:
     import skimage
     from skimage import measure
@@ -73,7 +68,7 @@ try:
 except ModuleNotFoundError:
     print('installing scikit-image')
     if platform.system() == 'Windows':
-        subprocess.call([sys.exec_prefix + '/python', "-m", 'pip', 'install', 'scikit-image'])
+        subprocess.call([C + "\OSGeo4W.bat","pip", "install", 'scikit-image'])
     else:
         subprocess.call(['python3', '-m', 'pip', 'install', 'scikit-image'])
     import skimage
@@ -85,22 +80,13 @@ try:
 except ModuleNotFoundError:
     print('installing pyproj')
     if platform.system() == 'Windows':
-        subprocess.call([sys.exec_prefix + '/python', "-m", 'pip', 'install', 'pyproj'])
+        subprocess.call([C + "\OSGeo4W.bat","pip", "install", 'pyproj'])
     else:
         subprocess.call(['python3', '-m', 'pip', 'install', 'pyproj'])
     import pyproj
 
 import json
-"""
-import skimage
-from skimage import measure
-from skimage import filters
-import requests
-import math 
 
-#
-#import geopandas as gp
-"""
 from sentinelhub import SHConfig
 from sentinelhub import (
     CRS,
@@ -324,8 +310,6 @@ class FireOutline:
             #self.dockwidget.currentExtentRadioButton.clicked.connect(lambda: self.toggle_extent(ExtentType.CURRENT))
 
 
-
-
             # dockwidget may not exist if:
             #    first run of plugin
             #    removed on close (see self.onClosePlugin method)
@@ -341,18 +325,21 @@ class FireOutline:
             self.iface.addDockWidget(Qt.BottomDockWidgetArea, self.dockwidget)
             self.dockwidget.show()
 
+            # Container of all widget
             self.dockwidget.Download_B.clicked.connect(self.tout_faire)
             self.dockwidget.connection_B.clicked.connect(self.test_connection)
 
             self.dockwidget.calendar.clicked.connect(self.add_calendar_date)
 
             self.dockwidget.folder_B.clicked.connect(self.select_download_folder)
+
+            #Instantiation of self global variable
             self.folder = ""
             self.calendar_time = ""
 
     def select_download_folder(self):
-        """ Opens a dialog to select a download folder
-        """
+        # Opens a dialog to select a download folder
+        
         self.folder = QFileDialog.getExistingDirectory(self.dockwidget, 'Select folder')
         self.dockwidget.folder_label.setText(self.folder)
         print(self.folder)
@@ -375,6 +362,8 @@ class FireOutline:
             for i in start_fire.split("-"):
                 res.append(int(i))
             start_fire = date(res[0], res[1], res[2])
+
+        #Stockage des valeurs dans variables date...
             
         self.date_in_before = (start_fire - timedelta(days = ecart_loin)).strftime("%Y-%m-%d")
         self.date_out_before = (start_fire - timedelta(days = ecart_proche)).strftime("%Y-%m-%d")
@@ -383,6 +372,10 @@ class FireOutline:
         self.date_out_after = (start_fire + timedelta(days = ecart_loin)).strftime("%Y-%m-%d")
         
     def find_files(self, filename, search_path):
+        """
+        Input : nom de fichier + path grand parent folder 
+        Output : path global du fichier
+        """
         result = []
         print(search_path)
         for root, dir, files in os.walk(search_path):
@@ -404,7 +397,7 @@ class FireOutline:
 
         print(f"Image shape at {resolution} m resolution: {betsiboka_size} pixels")
         
-        #Script sentinelHub pour récuperer dNBR
+        #Script sentinelHub pour récuperer dNBR (float32)
         #CLM correspond à la couche nuage
         evalscript_true_color = """
             //VERSION=3
@@ -447,6 +440,7 @@ class FireOutline:
         name = self.find_files("response.tiff",f"{self.path}/all/")
         print(name)
         
+        #Déplacement des images dans un dossier choisit + changement de nom
         if os.path.exists(f'{self.path}/{name_out}.tiff'):
             os.remove(f'{self.path}/{name_out}.tiff')
         os.rename(name[0], f'{self.path}/{name_out}.tiff')
@@ -568,8 +562,12 @@ class FireOutline:
         Input: raster dNBR + raster mask
         Output: surfaces brulées pour chaque gravitées. 
         '''
+
         #100 m2 /pixel surface d'un pixel 
+        #---------------------------------
         #!! A améliorer !!
+        #---------------------------------
+
         coef_pixel = 100 / 10000
         
         tot_pixel = 0
@@ -633,41 +631,48 @@ class FireOutline:
 
         #  get raster datasource
         src_ds = gdal.Open(f'{self.path}/{name}_mask.tiff')
-        #
+        # open raster layer
         srcband = src_ds.GetRasterBand(1)
+
+        #create layer output parameters
         dst_layername = 'burn'
         drv = ogr.GetDriverByName("ESRI Shapefile")
         dst_ds = drv.CreateDataSource(f'{self.path}/{name}_mask.shp')
-
         sp_ref = osr.SpatialReference()
         sp_ref.SetFromUserInput('EPSG:4326')
-
         dst_layer = dst_ds.CreateLayer(dst_layername, srs = sp_ref )
-
         fld = ogr.FieldDefn("HA", ogr.OFTInteger)
         dst_layer.CreateField(fld)
         dst_field = dst_layer.GetLayerDefn().GetFieldIndex("HA")
 
+        #Polygonize le raster mask et l'integrer aux parametres d'entrés
         R = gdal.Polygonize( srcband, srcband, dst_layer, dst_field, [], callback=None )
 
+        #vide la cache pour eviter surcharge CPU
         del src_ds
         del dst_ds
 
     import json
 
     def export_gpkg(self, name):
-        #in_path = "C:/Users/Adrien/Desktop/Sdis34/Contour de feu/Contour-de-feu/test_pour_C_bisb.shp"
-        #out_path = "CDF_final_ff01_2022.gpkg"
+        '''
+        Input: nom d'un .shp
+        Output: tous les element du .shp en 1 couche de .gpkg + valeurs de surfaces brulées
+        '''
+
+        #Lecture du .shp
         R = ogr.Open(f'{self.path}/{name}_mask.shp')
         T = R.GetLayer(0)
-        all_poly = []
 
+        #Liste de toutes les formes polygon du .shp
+        all_poly = []
         for feat in T:
             geom = feat.geometry()
             j_geom = geom.ExportToJson()
             value = json.loads(j_geom)["coordinates"]
             all_poly.append(value)
-            
+        
+        #création du dict du gpkg 
         resultsb = ({'properties': {'area_ha' : self.value_burn[0], 
                             'area_low_severity_ha' : self.value_burn[1], 
                             'area_moderate_severity_ha' : self.value_burn[2], 
@@ -681,25 +686,35 @@ class FireOutline:
         gpd_polygonized_raster.to_file(f'{self.path}/{name}_contour_final.gpkg')
 
     def export_dNBR(self, name):
-        "Input : np.array du mask (0 et 1) + path stockage du .tiff"
-        "Output : Raster georef du mask"
-        print(self.dNBR.shape)
+        """
+        Input : np.array du mask (0 et 1) + path stockage du .tiff
+        Output : Raster georeférencé du du dNBR en .tiff
+        """
+
+        #Paramètre du raster
         cols,rows = self.dNBR.shape
         gt = self.dataset_before.GetGeoTransform()
         srs = osr.SpatialReference()
         epsg = 4326
         srs.ImportFromEPSG(epsg)
         srs = srs.ExportToWkt()
+
         # Initialize driver & create file
         driver = gdal.GetDriverByName('GTiff')
         dataset_out = driver.Create(f'{self.path}/{name}_dNBR.tiff',rows, cols, 1, gdal.GDT_Float64)
         dataset_out.SetGeoTransform(gt)
         dataset_out.SetProjection(srs)
+
         # Write file to disk
         dataset_out.GetRasterBand(1).WriteArray(np.float64(self.dNBR))
         dataset_out = None  
 
     def coloring(self):
+        """
+        Actualise la colormap Qgis du dNBR pour coloration usuelle
+        """
+
+        #Creation de la colormap
         fcn = QgsColorRampShader()
         fcn.setColorRampType(QgsColorRampShader.Discrete)
         fcn.setClassificationMode(QgsColorRampShader.Continuous)
@@ -712,6 +727,7 @@ class FireOutline:
             QgsColorRampShader.ColorRampItem(1.3,QColor(255,16,243,255),"High Severity")
                  ]
 
+        #Application de la colormap
         fcn.setColorRampItemList(lst)
         shader = QgsRasterShader()
         shader.setRasterShaderFunction(fcn)
@@ -720,33 +736,40 @@ class FireOutline:
         self.dNBR_layer.triggerRepaint()  
 
     def tout_faire(self, name_fire = "Gignac", path = "C:/Users/Adrien/Desktop/Sdis34/Contour de feu/Output_test_Qgis"):
-        "Appuie du bouton download"
+        """
+            Processus global après appuis sur 'Download'
+        """
+
+        #Stockage du nom du feu
         name_fire = self.dockwidget.name_fire.text()
         import random
         
+        #Vérification des imputs calendar, nom de feu, dossier output valides
         if(self.calendar_time == ""):
             self.iface.messageBar().pushCritical("Critical", f"No date selected")
             return
 
-        # Generates a random number between
-        # a given positive range
         r1 = random.randint(1, 1000)
         if(name_fire == ""):
             name_fire = "No_name_fire_" + str(r1)
             self.iface.messageBar().pushInfo("Info", f"No fire name in input : it will be refferenced as {name_fire}")
-            
-
+        
         if(self.folder == ""):
             self.iface.messageBar().pushCritical("Critical", f"No folder selected")
             return
         else:
             self.path = self.folder
 
+        if os.path.exists(f'{self.path}/{name_fire}_af.tiff'):
+            name_fire = name_fire + str(r1)
+            self.iface.messageBar().pushInfo("Info", f"{self.dockwidget.name_fire.text()} already exist : new name : {name_fire}")
+
+
         #Load cred
         self.test_connection()
         #Calcul la boite image
         self.set_window_bbox()
-        #Calcul les jours
+        #Calcul les jours 
         self.get_date(self.calendar_time)
         #Download les images NBR sentinel
         try:
@@ -784,7 +807,7 @@ class FireOutline:
         #Open dNBR on Qgis
         self.dNBR_layer = self.iface.addRasterLayer(f"{self.path}/{name_fire}_dNBR.tiff", f"dNBR_{name_fire}")
         self.mask_layer = self.iface.addVectorLayer (f'{self.path}/{name_fire}_contour_final.gpkg', f"", "ogr")
-        #Colormap
+        #Colormap du dNBR
         self.coloring()
     
 
@@ -806,6 +829,12 @@ class FireOutline:
 
 
     def load_credential(self):
+        """Vérification des login / mdp de sentinelhub"""
+        #------------------------------
+
+        #Ne pas oublier
+
+        #-------------------------------
         #self.sentinel_ID = self.dockwidget.id_enter.text()
         #self.sentinel_PSW = self.dockwidget.psw_enter.text()
 
@@ -819,7 +848,7 @@ class FireOutline:
         print(self.calendar_time)
 
     def set_window_bbox(self):
-        """ Takes the coordinates of the current map window bbox and sets them into the fields
+        """ Retourne les coordonnées de la boite Qgis
         """
         bbox = get_bbox(CrsType.WGS84)
         self.bbox_list = bbox_to_string(bbox, CrsType.WGS84).split(',')
