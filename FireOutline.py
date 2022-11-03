@@ -21,12 +21,13 @@
  *                                                                         *
  ***************************************************************************/
 """
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt
+from qgis.gui import QgsMapToolEmitPoint, QgsMapTool, QgsMapToolEmitPoint, QgsRubberBand
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, Qt, pyqtSignal
 from qgis.PyQt.QtGui import QIcon, QColor
 from qgis.PyQt.QtWidgets import QAction, QFileDialog
 # Initialize Qt resources from file resources.py
 from .resources import *
-from qgis.core import QgsRasterLayer, QgsColorRampShader, QgsRasterShader, QgsSingleBandPseudoColorRenderer
+from qgis.core import QgsRasterLayer, QgsColorRampShader, QgsRasterShader, QgsSingleBandPseudoColorRenderer, QgsWkbTypes, QgsPointXY, QgsRectangle, QgsCoordinateReferenceSystem, QgsProject
 # Import the code for the DockWidget
 from .FireOutline_dockwidget import FireOutlineDockWidget
 import os
@@ -333,9 +334,17 @@ class FireOutline:
 
             self.dockwidget.folder_B.clicked.connect(self.select_download_folder)
 
+            self.dockwidget.contour_b.clicked.connect(self.press_end)
+            self.dockwidget.contour_b_2.clicked.connect(self.press_contour)
+
             #Instantiation of self global variable
             self.folder = ""
             self.calendar_time = ""
+
+            self.lat_max = "0"
+            self.lat_min = "0"
+            self.lng_min = "0"
+            self.lng_max = "0"
 
     def select_download_folder(self):
         # Opens a dialog to select a download folder
@@ -767,8 +776,12 @@ class FireOutline:
 
         #Load cred
         self.test_connection()
-        #Calcul la boite image
-        self.set_window_bbox()
+        #Check si zone d'etude valide
+        self.get_box()
+        if(self.bbox_list[0] == self.bbox_list[1]):
+            self.iface.messageBar().pushCritical("Critical", f"No area of study selected")
+            return
+
         #Calcul les jours 
         self.get_date(self.calendar_time)
         #Download les images NBR sentinel
@@ -838,8 +851,8 @@ class FireOutline:
         #self.sentinel_ID = self.dockwidget.id_enter.text()
         #self.sentinel_PSW = self.dockwidget.psw_enter.text()
 
-        self.sentinel_ID = "b6bd5ba6-4f0d-4a9a-8362-32ad48465dcd"
-        self.sentinel_PSW = ")Gp#ZiCk|m1]B7r|B6F>|AY@]d@B]V_G2xW[%y-7"
+        self.sentinel_ID = "b04a4ee7-5417-4318-912e-1fb21e29a65c"
+        self.sentinel_PSW = "Hv[cs0xe>%l.a7DTG1n1e{6reApKRooKX&?G<^)I"
 
     def add_calendar_date(self):
         """ Handles selected calendar date
@@ -859,12 +872,114 @@ class FireOutline:
         self.lat_max = self.bbox_list[2]
         self.lng_max = self.bbox_list[3]
 
+        self.actual_box()        
+
+    def actual_box(self):
+        self.dockwidget.lat_min_t.setText(self.lat_min)
+        self.dockwidget.lat_max_t.setText(self.lat_max)
+
+        self.dockwidget.long_t_min.setText(self.lng_min)
+        self.dockwidget.long_t_max.setText(self.lng_max)
+
         self.bbox_list = [self.lng_min, self.lat_min, self.lng_max, self.lat_max]
 
         print(self.bbox_list)
 
+    def press_contour(self):
+        print("En cours")
+        QgsProject.instance().setCrs(QgsCoordinateReferenceSystem(4326))
+        self.tool = RectangleMapTool(self.iface.mapCanvas(), self)
+        self.iface.mapCanvas().setMapTool(self.tool)
 
-        
+    def end_tool(self):
+        self.iface.mapCanvas().unsetMapTool(self.tool)
 
+    def press_end(self):        
+        self.set_window_bbox()
+
+    def get_box(self):
+        self.bbox_list = [self.dockwidget.long_t_min.text(), self.dockwidget.lat_min_t.text(), self.dockwidget.long_t_max.text(), self.dockwidget.lat_max_t.text()]
+
+
+
+class RectangleMapTool(QgsMapTool):
+    def __init__(self, canvas, fire):
+        self.canvas = canvas
+        self.fire = fire
+        QgsMapTool.__init__(self, self.canvas)
+        self.rubberBand = QgsRubberBand(self.canvas, QgsWkbTypes.PolygonGeometry)
+        self.rubberBand.setColor(Qt.red)
+        self.rubberBand.setWidth(1)
+        self.reset()
+  
+    def reset(self):
+        self.startPoint = self.endPoint = None
+        self.isEmittingPoint = False
+        self.rubberBand.reset(QgsWkbTypes.PolygonGeometry)
+  
+    def canvasPressEvent(self, e):
+        self.startPoint = self.toMapCoordinates(e.pos())
+        self.endPoint = self.startPoint
+        self.isEmittingPoint = True
+        self.showRect(self.startPoint, self.endPoint)
+  
+    def canvasReleaseEvent(self, e):
+        self.isEmittingPoint = False
+        r = self.rectangle()
+        if r is not None:
+          print("Rectangle:", r.xMinimum(),
+                r.yMinimum(), r.xMaximum(), r.yMaximum()
+               )
+
+        self.fire.lat_min = str(r.yMinimum())[:8]
+        self.fire.lng_min = str(r.xMinimum())[:8]
+        self.fire.lat_max = str(r.yMaximum())[:8]
+        self.fire.lng_max = str(r.xMaximum())[:8]
+
+        self.fire.actual_box()
+
+        self.reset()
+        self.deactivate()
+        self.fire.end_tool()
+  
+    def canvasMoveEvent(self, e):
+        if not self.isEmittingPoint:
+          return
     
-       
+        self.endPoint = self.toMapCoordinates(e.pos())
+        self.showRect(self.startPoint, self.endPoint)
+  
+    def showRect(self, startPoint, endPoint):
+        self.rubberBand.reset(QgsWkbTypes.PolygonGeometry)
+        if startPoint.x() == endPoint.x() or startPoint.y() == endPoint.y():
+          return
+    
+        point1 = QgsPointXY(startPoint.x(), startPoint.y())
+        point2 = QgsPointXY(startPoint.x(), endPoint.y())
+        point3 = QgsPointXY(endPoint.x(), endPoint.y())
+        point4 = QgsPointXY(endPoint.x(), startPoint.y())
+    
+        self.rubberBand.addPoint(point1, False)
+        self.rubberBand.addPoint(point2, False)
+        self.rubberBand.addPoint(point3, False)
+        self.rubberBand.addPoint(point4, True)    # true to update canvas
+        self.rubberBand.show()
+  
+    def rectangle(self):
+        if self.startPoint is None or self.endPoint is None:
+            return None
+        elif (self.startPoint.x() == self.endPoint.x() or \
+              self.startPoint.y() == self.endPoint.y()):
+            return None
+    
+        return QgsRectangle(self.startPoint, self.endPoint)
+  
+    def deactivate(self):
+        print("desactivation")
+        #option 1:
+        super().deactivate()
+
+        QgsMapTool.deactivate(self)
+        self.deactivated.emit()  
+        
+        
