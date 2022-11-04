@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>697</width>
-    <height>396</height>
+    <width>692</width>
+    <height>367</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,7 +18,7 @@
     <item row="0" column="0">
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="Login">
        <attribute name="title">
@@ -30,7 +30,7 @@
           <x>20</x>
           <y>10</y>
           <width>191</width>
-          <height>16</height>
+          <height>21</height>
          </rect>
         </property>
         <property name="font">
@@ -41,7 +41,7 @@
          </font>
         </property>
         <property name="text">
-         <string>Welcome to FireOutline</string>
+         <string>FireOutline</string>
         </property>
        </widget>
        <widget class="QLabel" name="id_label">
@@ -54,7 +54,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>Id</string>
+         <string>Client ID</string>
         </property>
        </widget>
        <widget class="QLabel" name="psw_label">
@@ -67,7 +67,7 @@
          </rect>
         </property>
         <property name="text">
-         <string>Psw</string>
+         <string>Client Secret</string>
         </property>
        </widget>
        <widget class="QLineEdit" name="id_enter">
@@ -94,13 +94,52 @@
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>110</y>
+          <y>140</y>
           <width>231</width>
           <height>28</height>
          </rect>
         </property>
         <property name="text">
          <string>Connect</string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_6">
+        <property name="geometry">
+         <rect>
+          <x>130</x>
+          <y>110</y>
+          <width>111</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;a href=&quot;https://docs.sentinel-hub.com/api/latest/api/overview/authentication/&quot;&gt;&lt;span style=&quot; font-size:8pt; text-decoration: underline; color:#0000ff;&quot;&gt;Create OAuth client&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+       </widget>
+       <widget class="QCheckBox" name="checkBox">
+        <property name="geometry">
+         <rect>
+          <x>10</x>
+          <y>110</y>
+          <width>101</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Remember log</string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_7">
+        <property name="geometry">
+         <rect>
+          <x>90</x>
+          <y>180</y>
+          <width>81</width>
+          <height>81</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;img src=&quot;:/newPrefix/icon.png&quot;/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
         </property>
        </widget>
       </widget>
@@ -322,6 +361,8 @@
    </layout>
   </widget>
  </widget>
- <resources/>
+ <resources>
+  <include location="logo.qrc"/>
+ </resources>
  <connections/>
 </ui>

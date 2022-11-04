@@ -32,6 +32,7 @@ from qgis.core import QgsRasterLayer, QgsColorRampShader, QgsRasterShader, QgsSi
 from .FireOutline_dockwidget import FireOutlineDockWidget
 import os
 import sys
+import pickle
 
 
 import pathlib
@@ -45,6 +46,7 @@ import subprocess
 import sys
 
 from .exceptions import show_message
+import configparser
 
 #Recherche du path de OSGEO
 A = sys.exec_prefix
@@ -345,6 +347,23 @@ class FireOutline:
             self.lat_min = "0"
             self.lng_min = "0"
             self.lng_max = "0"
+
+            try :
+                f = open('properties.pckl', 'rb')
+                obj = pickle.load(f)
+                f.close()
+
+            except:
+                f = open('properties.pckl', 'wb')
+                pickle.dump(["vide", "vide"], f)
+                f.close()
+
+                f = open('properties.pckl', 'rb')
+                obj = pickle.load(f)
+                f.close()
+
+            self.dockwidget.id_enter.setText(obj[0])
+            self.dockwidget.psw_enter.setText(obj[1])
 
     def select_download_folder(self):
         # Opens a dialog to select a download folder
@@ -848,8 +867,11 @@ class FireOutline:
         #Ne pas oublier
 
         #-------------------------------
-        #self.sentinel_ID = self.dockwidget.id_enter.text()
-        #self.sentinel_PSW = self.dockwidget.psw_enter.text()
+        if(self.dockwidget.id_enter.text() != "" and self.dockwidget.psw_enter.text() != ""):
+            print("new save")
+            f = open('properties.pckl', 'wb')
+            pickle.dump([self.dockwidget.id_enter.text(), self.dockwidget.psw_enter.text()], f)
+            f.close()
 
         self.sentinel_ID = "b04a4ee7-5417-4318-912e-1fb21e29a65c"
         self.sentinel_PSW = "Hv[cs0xe>%l.a7DTG1n1e{6reApKRooKX&?G<^)I"
@@ -931,10 +953,10 @@ class RectangleMapTool(QgsMapTool):
                 r.yMinimum(), r.xMaximum(), r.yMaximum()
                )
 
-        self.fire.lat_min = str(r.yMinimum())[:8]
-        self.fire.lng_min = str(r.xMinimum())[:8]
-        self.fire.lat_max = str(r.yMaximum())[:8]
-        self.fire.lng_max = str(r.xMaximum())[:8]
+        self.fire.lat_min = str(r.yMinimum())[:9]
+        self.fire.lng_min = str(r.xMinimum())[:9]
+        self.fire.lat_max = str(r.yMaximum())[:9]
+        self.fire.lng_max = str(r.xMaximum())[:9]
 
         self.fire.actual_box()
 
@@ -958,11 +980,14 @@ class RectangleMapTool(QgsMapTool):
         point2 = QgsPointXY(startPoint.x(), endPoint.y())
         point3 = QgsPointXY(endPoint.x(), endPoint.y())
         point4 = QgsPointXY(endPoint.x(), startPoint.y())
-    
+        
+        self.rubberBand.setFillColor(QColor(50, 50, 50, 50))
+
         self.rubberBand.addPoint(point1, False)
         self.rubberBand.addPoint(point2, False)
         self.rubberBand.addPoint(point3, False)
         self.rubberBand.addPoint(point4, True)    # true to update canvas
+
         self.rubberBand.show()
   
     def rectangle(self):
