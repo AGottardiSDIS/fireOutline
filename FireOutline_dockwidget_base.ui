@@ -361,8 +361,5 @@
    </layout>
   </widget>
  </widget>
- <resources>
-  <include location="logo.qrc"/>
- </resources>
  <connections/>
 </ui>
